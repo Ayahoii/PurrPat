@@ -1,0 +1,59 @@
+{
+  "name": "purrpat",
+  "productName": "PurrPat",
+  "version": "1.0.0",
+  "description": "PurrPat - Sistema de Pat Pat para VTubers na Twitch",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --enable-logging",
+    "build:win": "electron-builder --win nsis --publish never",
+    "release:win": "powershell -ExecutionPolicy Bypass -File ./scripts/release.ps1"
+  },
+  "keywords": [],
+  "author": "Ayahoii",
+  "license": "MIT",
+  "dependencies": {
+    "electron-updater": "^6.3.9",
+    "express": "^4.21.0",
+    "socket.io": "^4.8.3",
+    "tmi.js": "^1.8.5",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.ayahoii.purrpat",
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "public/**/*",
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

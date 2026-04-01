@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Pat Pat</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="patpat-container">
+    <div class="username" id="username"></div>
+    <img src="patpat.gif" alt="PatPat" id="patpat-img">
+    <img id="profile-pic" alt="Foto de perfil">
+    <div id="user-message" class="user-message"></div>
+  </div>
+  
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const isPreview = new URLSearchParams(location.search).has('preview');
+    const _czDefaults = { gifScale: 1.0, nicknameFontSize: 28, nicknameOffsetY: 35, nicknameOffsetX: 50 };
+    let _nicknameGlow = true;
+    let _nicknameOutline = true;
+    let _nicknameFont = 'Arial';
+    let _showPlatformIcon = true;
+
+    function applyNicknameEffects(hex) {
+      const uname = document.getElementById('username');
+      if (!uname) return;
+      // Outline
+      if (_nicknameOutline && hex) {
+        function _darken(h, p) {
+          h = h.replace('#','');
+          let r=Math.floor(parseInt(h.substring(0,2),16)*(1-p));
+          let g=Math.floor(parseInt(h.substring(2,4),16)*(1-p));
+          let b=Math.floor(parseInt(h.substring(4,6),16)*(1-p));
+          return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+        }
+        const bc = _darken(hex, 0.5);
+        uname.style.webkitTextStroke = `2px ${bc}`;
+        uname.style.textStroke = `2px ${bc}`;
+      } else {
+        uname.style.webkitTextStroke = '0';
+        uname.style.textStroke = '0';
+      }
+      // Glow
+      if (_nicknameGlow && hex) {
+        uname.style.filter = `drop-shadow(0 0 8px ${hex}) drop-shadow(0 0 12px ${hex}80) drop-shadow(0 0 6px rgba(255,255,255,0.3))`;
+        uname.style.textShadow = `0 0 10px ${hex}, 0 0 15px ${hex}80, 0 0 20px ${hex}40, 2px 2px 4px rgba(0,0,0,0.8)`;
+      } else {
+        uname.style.filter = 'none';
+        uname.style.textShadow = '2px 2px 4px rgba(0,0,0,0.8)';
+      }
+    }
+
+    function applyCustomization(cfg) {
+      if (!cfg) return;
+      const scale = parseFloat(cfg.gifScale) || _czDefaults.gifScale;
+      const fontSize = parseInt(cfg.nicknameFontSize) || _czDefaults.nicknameFontSize;
+      const offsetY = cfg.nicknameOffsetY !== undefined ? parseInt(cfg.nicknameOffsetY) : _czDefaults.nicknameOffsetY;
+      const offsetX = cfg.nicknameOffsetX !== undefined ? parseInt(cfg.nicknameOffsetX) : _czDefaults.nicknameOffsetX;
+      const w = Math.round(200 * scale);
+      const container = document.querySelector('.patpat-container');
+      const img = document.getElementById('patpat-img');
+      const uname = document.getElementById('username');
+      if (container) container.style.width = w + 'px';
+      if (img) img.style.width = w + 'px';
+      if (uname) {
+        uname.style.fontSize = fontSize + 'px';
+        uname.style.top = offsetY + 'px';
+        uname.style.left = offsetX + '%';
+      }
+      // Font family
+      if (cfg.nicknameFont !== undefined) {
+        _nicknameFont = cfg.nicknameFont || 'Arial';
+        const uname2 = document.getElementById('username');
+        if (uname2) uname2.style.fontFamily = `'${_nicknameFont}', Arial, sans-serif`;
+      }
+      // Show/hide platform icon
+      if (cfg.showPlatformIcon !== undefined) {
+        _showPlatformIcon = !!cfg.showPlatformIcon;
+        const ico = document.querySelector('#username .twitch-icon');
+        if (ico) ico.style.display = _showPlatformIcon ? '' : 'none';
+      }
+      // Apply glow/outline toggles
+      if (cfg.nicknameGlow !== undefined) _nicknameGlow = !!cfg.nicknameGlow;
+      if (cfg.nicknameOutline !== undefined) _nicknameOutline = !!cfg.nicknameOutline;
+      // Apply previewColor (preview only, not persisted)
+      if (isPreview && cfg.previewColor) {
+        const hex = cfg.previewColor;
+        if (uname) uname.style.color = hex;
+        applyNicknameEffects(hex);
+      } else {
+        const currentHex = uname ? uname.style.color : null;
+        applyNicknameEffects(currentHex || null);
+      }
+    }
+    let currentUser = null;
+    let messageTimeout = null;
+    let fadeTimeout = null;
+    let currentSettings = { messageDuration: 10, patpatEnabled: true }; // Default
+    let pagePatpat = null; // Armazena o Pat Pat desta página especifica
+    let animationQueue = []; // Fila de animações
+    let isAnimating = false; // Flag de animação em andamento
+    let currentGif = 'patpat.gif'; // GIF atual
+
+    // Carrega Pat Pat armazenado localmente desta página
+    function loadStoredPatpat() {
+      const stored = localStorage.getItem('pagePatpat');
+      if (stored) {
+        pagePatpat = JSON.parse(stored);
+        return pagePatpat;
+      }
+      return null;
+    }
+
+    // Salva Pat Pat desta página localmente
+    function saveStoredPatpat(data) {
+      pagePatpat = data;
+      localStorage.setItem('pagePatpat', JSON.stringify(data));
+    }
+
+    // Busca o último Pat Pat do backend
+    async function fetchPatPat() {
+      try {
+        const endpoint = isPreview ? '/preview-patpat' : '/last-patpat';
+        const res = await fetch(endpoint);
+        const data = await res.json();
+        
+        // Atualiza configurações locais se vierem do servidor
+        if (data.settings) {
+          currentSettings = data.settings;
+          applyCustomization(currentSettings);
+        }
+
+        // Se Pat Pat está desativado, limpa tudo
+        if (!currentSettings.patpatEnabled) {
+          document.getElementById("username").textContent = '';
+          document.getElementById("user-message").style.display = 'none';
+          document.getElementById("patpat-img").style.display = 'none';
+          localStorage.removeItem('pagePatpat');
+          return;
+        }
+
+        // Se estava desativado e agora está ativado, mostra a imagem
+        document.getElementById("patpat-img").style.display = 'block';
+
+        // Se o servidor tem um Pat Pat válido, usa ele e salva
+        // Caso contrário, usa o localStorage
+        let patpat;
+        if (data.user && data.user !== '???') {
+          // Servidor tem Pat Pat válido, usa e salva
+          // Preserva o currentGif se já existir no localStorage
+          patpat = {
+            ...data,
+            currentGif: pagePatpat?.currentGif || data.currentGif || 'patpat.gif'
+          };
+          saveStoredPatpat(patpat);
+        } else if (pagePatpat && pagePatpat.user && pagePatpat.user !== '???') {
+          // Sem Pat Pat no servidor, usa o salvo no localStorage
+          patpat = pagePatpat;
+        } else {
+          // Não há Pat Pat válido em lugar nenhum, limpa
+          document.getElementById("username").textContent = '';
+          document.getElementById("user-message").style.display = 'none';
+          document.getElementById("profile-pic").style.display = 'none';
+          localStorage.removeItem('pagePatpat');
+          return;
+        }
+
+        const user = patpat.user || '???';
+        currentUser = patpat.user;
+
+        // Carrega GIF salvo ou usa o padrão
+        const savedGif = patpat.currentGif || 'patpat.gif';
+        currentGif = savedGif;
+        const patpatImg = document.getElementById("patpat-img");
+        const gifPath = savedGif === 'patpat.gif' ? savedGif : `patpats/${savedGif}`;
+        patpatImg.src = gifPath;
+
+        const color = patpat.color || '#fff';
+        const message = patpat.message || '';
+        const platform = patpat.platform || 'twitch'; // Detecta plataforma
+
+        const usernameDiv = document.getElementById("username");
+        const messageDiv = document.getElementById("user-message");
+        
+        // Inicia com opacidade 0
+        usernameDiv.style.opacity = '0';
+        patpatImg.style.opacity = '0';
+        
+        // Escolhe ícone baseado na plataforma
+        const platformIcon = platform === 'youtube' ? 'youtube_icon.png' : 'twitch_icon.png';
+        const platformName = platform === 'youtube' ? 'YouTube' : 'Twitch';
+        
+        // Adiciona badge de subscriber se for Twitch e for sub
+        const isSubscriber = patpat.isSubscriber || false;
+        const subscriberBadge = (platform === 'twitch' && isSubscriber) 
+          ? '<svg class="subscriber-badge" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M9 0L11.5 5.5L18 6.5L13.5 11L14.5 18L9 14.5L3.5 18L4.5 11L0 6.5L6.5 5.5L9 0Z" fill="#b9a3e3"/></svg>'
+          : '';
+        
+        const iconDisplay = _showPlatformIcon ? '' : 'none';
+        usernameDiv.innerHTML = `<img src='${platformIcon}' alt='${platformName}' class='twitch-icon' style='display:${iconDisplay}'>${subscriberBadge} ${user}`;
+        // Apply saved font family
+        usernameDiv.style.fontFamily = `'${_nicknameFont}', Arial, sans-serif`;
+        
+        // Cria partículas se for subscriber
+        if (platform === 'twitch' && isSubscriber) {
+          createParticles(color);
+        }
+        
+        if (message) {
+          showMessage(message, patpat.emotes || {});
+        } else {
+          messageDiv.style.display = 'none';
+        }
+
+        // Se color for um hex válido, aplica ao texto e calcula borda mais escura
+        if (/^#?[0-9A-Fa-f]{6}$/.test(color)) {
+          let hex = color.startsWith('#') ? color : `#${color}`;
+          usernameDiv.style.color = hex;
+          function darken(hex, percent) {
+            hex = hex.replace('#', '');
+            let r = parseInt(hex.substring(0,2), 16);
+            let g = parseInt(hex.substring(2,4), 16);
+            let b = parseInt(hex.substring(4,6), 16);
+            r = Math.floor(r * (1 - percent));
+            g = Math.floor(g * (1 - percent));
+            b = Math.floor(b * (1 - percent));
+            return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+          }
+          let borderColor = darken(hex, 0.5);
+          usernameDiv.style.webkitTextStroke = `2px ${borderColor}`;
+          usernameDiv.style.textStroke = `2px ${borderColor}`;
+          
+          // Aplica glow effect com a cor do usuário
+          usernameDiv.style.filter = `drop-shadow(0 0 8px ${hex}) 
+                                       drop-shadow(0 0 12px ${hex}80)
+                                       drop-shadow(0 0 6px rgba(255, 255, 255, 0.3))`;
+          usernameDiv.style.textShadow = `0 0 10px ${hex},
+                                          0 0 15px ${hex}80,
+                                          0 0 20px ${hex}40,
+                                          2px 2px 4px rgba(0, 0, 0, 0.8)`;
+          // Override with customization effects
+          applyNicknameEffects(hex);
+        }
+
+        // Busca foto de perfil do Twitch
+        let profilePicUrl = '';
+        if (user && user !== '???') {
+          try {
+            // API pública Twitch para buscar user
+            const twitchRes = await fetch(`https://decapi.me/twitch/avatar/${encodeURIComponent(user)}`);
+            profilePicUrl = await twitchRes.text();
+          } catch (e) {
+            profilePicUrl = '';
+          }
+        }
+        const profilePic = document.getElementById('profile-pic');
+        if (profilePicUrl && profilePicUrl.startsWith('http')) {
+          profilePic.src = profilePicUrl;
+          profilePic.style.display = 'block';
+          // Anima a entrada da foto
+          profilePic.classList.remove('profile-enter');
+          void profilePic.offsetWidth; // Force reflow
+          profilePic.classList.add('profile-enter');
+          
+          // Após a foto começar a desaparecer, mostra o username e patpat
+          setTimeout(() => {
+            usernameDiv.classList.remove('username-appear');
+            patpatImg.classList.remove('patpat-appear');
+            void usernameDiv.offsetWidth;
+            void patpatImg.offsetWidth;
+            usernameDiv.classList.add('username-appear');
+            patpatImg.classList.add('patpat-appear');
+          }, 1000);
+        } else {
+          // Sem foto de perfil, mostra direto username e patpat
+          profilePic.style.display = 'none';
+          usernameDiv.classList.remove('username-appear');
+          patpatImg.classList.remove('patpat-appear');
+          void usernameDiv.offsetWidth;
+          void patpatImg.offsetWidth;
+          usernameDiv.classList.add('username-appear');
+          patpatImg.classList.add('patpat-appear');
+        }
+
+        // Eventos de hover removidos - foto sempre desaparece após animação
+      } catch (e) {
+        document.getElementById("username").textContent = 'Erro ao buscar Pat Pat';
+      }
+    }
+
+    function showMessage(msg, emotes) {
+      const messageDiv = document.getElementById("user-message");
+      
+      // Processa emotes
+      const { html, isOnlyEmotes } = processMessageWithEmotes(msg, emotes);
+      messageDiv.innerHTML = html;
+      
+      // Remove listeners antigos
+      messageDiv.onanimationend = null;
+      
+      // Reseta estado para animação
+      messageDiv.style.display = 'flex';
+      messageDiv.classList.remove('fade-out');
+      messageDiv.classList.remove('pop-in');
+      
+      // Força reflow para reiniciar animação
+      void messageDiv.offsetWidth; 
+      
+      messageDiv.classList.add('pop-in');
+      
+      const duration = (currentSettings.messageDuration || 10) * 1000;
+      const fadeTime = 1000; // Tempo da animação de saída (ms)
+      const visibleTime = Math.max(0, duration - fadeTime);
+
+      // Limpa timers anteriores
+      if (messageTimeout) clearTimeout(messageTimeout);
+      if (fadeTimeout) clearTimeout(fadeTimeout);
+      
+      // Timer para iniciar o fade out
+      fadeTimeout = setTimeout(() => {
+        messageDiv.classList.remove('pop-in'); // Remove animação de entrada para evitar conflito
+        messageDiv.classList.add('fade-out');
+        
+        // Quando o fade acabar, esconde o elemento
+        messageDiv.onanimationend = () => {
+          messageDiv.style.display = 'none';
+          messageDiv.classList.remove('fade-out');
+          messageDiv.classList.remove('pop-in');
+        };
+      }, visibleTime);
+    }
+
+    // Escuta mensagens do chat em tempo real
+    socket.on('chat_message', (data) => {
+      // Verifica se Pat Pat está habilitado
+      if (!currentSettings.patpatEnabled) {
+        return;
+      }
+
+      // Verifica se o usuário que mandou a mensagem é o mesmo que está na tela
+      if (currentUser && (data.displayName === currentUser || data.username === currentUser.toLowerCase())) {
+        
+        // Verifica configurações antes de mostrar
+        fetch('/api/settings').then(r => r.json()).then(settings => {
+           currentSettings = settings; // Atualiza configs locais
+           if (settings.showUserMessages && settings.patpatEnabled) {
+             showMessage(data.message, data.emotes);
+           }
+        });
+      }
+    });
+
+    // Listener para quando um novo Pat Pat é resgatado (via socket)
+    // Só aceita se esta página ainda não tiver um usuário carregado.
+    // Cada nova instância spawned pelo VTubeStudio começa sem usuário e
+    // reclama o próximo pat pat disponível. Páginas existentes ignoram.
+    socket.on('new_patpat', (data) => {
+      if (isPreview) return; // preview pages only respond to preview_patpat
+      if (currentSettings.patpatEnabled && !currentUser) {
+        // Salva este Pat Pat localmente para esta página, SEMPRE com GIF padrão
+        saveStoredPatpat({
+          user: data.user,
+          color: data.color,
+          message: data.message,
+          emotes: data.emotes || {},
+          currentGif: data.currentGif || 'patpat.gif'
+        });
+        // Recarrega a página com o novo Pat Pat
+        fetchPatPat();
+      }
+    });
+
+    // Preview-only listener: receives patpat data without counting toward session stats
+    socket.on('preview_patpat', (data) => {
+      if (!isPreview) return;
+      currentUser = null; // Reset so fetchPatPat uses localStorage fallback
+      saveStoredPatpat({
+        user: data.user,
+        color: data.color,
+        message: data.message,
+        emotes: data.emotes || {},
+        currentGif: data.currentGif || 'patpat.gif',
+        platform: data.platform || 'twitch',
+        isSubscriber: data.isSubscriber || false
+      });
+      fetchPatPat();
+    });
+
+    // Listener para mudança de GIF
+    socket.on('change_patpat_gif', (data) => {
+      // Só troca se for o usuário desta página
+      if (currentUser && (data.displayName === currentUser || data.username === currentUser.toLowerCase())) {
+        queueGifChange(data.gifFile);
+      }
+    });
+
+    function queueGifChange(gifFile) {
+      animationQueue.push(gifFile);
+      processAnimationQueue();
+    }
+
+    function processAnimationQueue() {
+      if (isAnimating || animationQueue.length === 0) return;
+
+      isAnimating = true;
+      const gifFile = animationQueue.shift();
+      changePatpatGif(gifFile);
+    }
+
+    function changePatpatGif(gifFile) {
+      const patpatImg = document.getElementById('patpat-img');
+      
+      // Animação de fade out rápida
+      patpatImg.style.transition = 'opacity 0.3s, transform 0.3s';
+      patpatImg.style.opacity = '0';
+      patpatImg.style.transform = 'scale(0.9)';
+
+      setTimeout(() => {
+        // Troca o GIF
+        // Se for o padrão (patpat.gif), não adiciona patpats/
+        const gifPath = gifFile === 'patpat.gif' ? gifFile : (gifFile.startsWith('patpats/') ? gifFile : `patpats/${gifFile}`);
+        patpatImg.src = gifPath;
+        currentGif = gifFile;
+
+        // Salva o GIF no localStorage
+        const stored = pagePatpat || {};
+        stored.currentGif = gifFile;
+        saveStoredPatpat(stored);
+
+        // Animação de fade in
+        patpatImg.style.opacity = '1';
+        patpatImg.style.transform = 'scale(1)';
+
+        setTimeout(() => {
+          isAnimating = false;
+          processAnimationQueue(); // Processa próxima animação da fila
+        }, 300);
+      }, 300);
+    }
+    function processMessageWithEmotes(message, emotes) {
+      if (!emotes || Object.keys(emotes).length === 0) {
+        return { html: escapeHtml(message), isOnlyEmotes: false };
+      }
+
+      // Cria array de posições de emotes para processar
+      let emoteParts = [];
+      for (let emoteId in emotes) {
+        const positions = emotes[emoteId];
+        positions.forEach(pos => {
+          const [start, end] = pos.split('-').map(Number);
+          const emoteName = message.substring(start, end + 1);
+          emoteParts.push({ start, end, emoteId, emoteName });
+        });
+      }
+
+      // Ordena por posição
+      emoteParts.sort((a, b) => a.start - b.start);
+
+      // Verifica se é só emotes
+      let tempMsg = message;
+      emoteParts.forEach(part => {
+        tempMsg = tempMsg.replace(part.emoteName, '');
+      });
+      const isOnlyEmotes = tempMsg.trim().length === 0;
+
+      // Reconstrói a mensagem com HTML
+      let html = '';
+      let lastIdx = 0;
+      emoteParts.forEach(part => {
+        html += escapeHtml(message.substring(lastIdx, part.start));
+        const emoteClass = isOnlyEmotes ? 'emote-large' : 'emote-small';
+        html += `<img src="https://static-cdn.jtvnw.net/emoticons/v2/${part.emoteId}/default/dark/2.0" class="${emoteClass}" alt="${part.emoteName}" title="${part.emoteName}">`;
+        lastIdx = part.end + 1;
+      });
+      html += escapeHtml(message.substring(lastIdx));
+
+      return { html, isOnlyEmotes };
+    }
+
+    function escapeHtml(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      };
+      return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // Sistema de partículas para subscribers
+    function createParticles(color) {
+      const container = document.querySelector('.patpat-container');
+      const usernameDiv = document.getElementById('username');
+      
+      // Remove partículas antigas
+      document.querySelectorAll('.particle').forEach(p => p.remove());
+      
+      // Cria 15 partículas
+      for (let i = 0; i < 15; i++) {
+        setTimeout(() => {
+          const particle = document.createElement('div');
+          particle.className = 'particle';
+          
+          // Posição aleatória ao redor do username
+          const rect = usernameDiv.getBoundingClientRect();
+          const containerRect = container.getBoundingClientRect();
+          
+          const startX = rect.left - containerRect.left + (Math.random() * rect.width);
+          const startY = rect.top - containerRect.top + (Math.random() * rect.height);
+          
+          particle.style.left = `${startX}px`;
+          particle.style.top = `${startY}px`;
+          particle.style.backgroundColor = color;
+          particle.style.boxShadow = `0 0 10px ${color}, 0 0 20px ${color}`;
+          
+          // Animação aleatória
+          const duration = 2 + Math.random() * 2; // 2-4 segundos
+          const distance = 50 + Math.random() * 100; // 50-150px
+          const angle = Math.random() * Math.PI * 2; // Direção aleatória
+          
+          particle.style.animation = `float-particle ${duration}s ease-out forwards`;
+          particle.style.setProperty('--tx', `${Math.cos(angle) * distance}px`);
+          particle.style.setProperty('--ty', `${Math.sin(angle) * distance}px`);
+          
+          container.appendChild(particle);
+          
+          // Remove partícula após animação
+          setTimeout(() => particle.remove(), duration * 1000);
+        }, i * 100); // Delay entre cada partícula
+      }
+    }
+
+    socket.on('current_state', (data) => {
+      if (data.settings) {
+        currentSettings = { ...currentSettings, ...data.settings };
+        applyCustomization(currentSettings);
+      }
+    });
+
+    socket.on('customize_preview', (data) => {
+      if (isPreview) applyCustomization(data);
+    });
+
+    socket.on('customize_apply', (data) => {
+      applyCustomization(data);
+    });
+
+    if (isPreview) {
+      localStorage.removeItem('pagePatpat'); // start fresh, wait for preview_patpat event
+    } else {
+      fetchPatPat();
+    }
+    
+    // Carrega Pat Pat armazenado desta página ao iniciar
+    loadStoredPatpat();
+  </script>
+</body>
+</html>

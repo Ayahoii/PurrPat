@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PurrPat</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ═══ SETUP OVERLAY (first-time auth) ═══ -->
+  <div id="setup-overlay" class="hidden">
+    <div class="setup-box">
+      <div class="setup-logo">🐾 PurrPat</div>
+
+      <div class="lang-switcher">
+        <label class="lang-label" for="lang-select" data-i18n="setup.lang_label">Idioma:</label>
+        <select id="lang-select" class="lang-select" onchange="i18n.setLang(this.value)">
+          <option value="pt-BR">Português (Brasil)</option>
+          <option value="en-US">English</option>
+        </select>
+      </div>
+
+      <!-- Step 1: Login com a Twitch -->
+      <div id="step-login" class="setup-step">
+        <h2 data-i18n="setup.welcome">Bem-vindo ao PurrPat!</h2>
+        <p class="setup-subtitle" data-i18n="setup.subtitle">Conecte sua conta da Twitch para começar.</p>
+        <button class="platform-btn twitch-btn" onclick="App.setup.loginTwitch()">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>
+          <span data-i18n="setup.login_twitch">Login com a Twitch</span>
+        </button>
+        <p id="setup-error" class="setup-error hidden"></p>
+      </div>
+
+      <!-- Step 2: Aguardando autorização -->
+      <div id="step-waiting" class="setup-step hidden">
+        <div class="spinner"></div>
+        <h2 data-i18n="setup.waiting_title">Aguardando autorização...</h2>
+        <p class="setup-subtitle" data-i18n="setup.waiting_desc">O navegador foi aberto. Autorize o PurrPat na Twitch e volte aqui.</p>
+        <button class="btn-secondary" onclick="App.setup.cancelWait()" data-i18n="setup.cancel">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MAIN APP ═══ -->
+  <div id="app" class="hidden">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="app-logo">🐾 PurrPat</span>
+      </div>
+      <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+        <button class="tab-btn" data-tab="patpats">Pat Pats</button>
+        <button class="tab-btn" data-tab="users" data-i18n="tab.users">Usuários</button>
+        <button class="tab-btn" data-tab="preview" data-i18n="tab.preview">Personalizar</button>
+        <button class="tab-btn" data-tab="settings" data-i18n="tab.settings">Configurações</button>
+        <button class="tab-btn" data-tab="extras" data-i18n="tab.extras">Extras</button>
+      </nav>
+      <div class="topbar-right">
+        <div class="status-pill" id="status-twitch" title="Status Twitch">
+          <span class="status-dot"></span>
+          <span class="status-label">Twitch</span>
+        </div>
+        <div class="status-pill" id="status-vtuber" title="Status VTube Studio">
+          <span class="status-dot"></span>
+          <span class="status-label">VTube Studio</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── Dashboard tab ── -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="dashboard-grid">
+
+        <!-- Control cards -->
+        <div class="card control-card">
+          <div class="card-header">
+            <h3>Twitch Bot</h3>
+            <div id="twitch-dot" class="connection-dot offline"></div>
+          </div>
+          <p class="card-user" id="twitch-username">—</p>
+          <div class="card-actions">
+            <button class="btn-primary" id="btn-bot-connect" onclick="App.bot.toggle()">Conectar</button>
+            <button class="btn-danger" id="btn-logout" onclick="App.auth.logout()">Logout</button>
+          </div>
+          <div class="card-actions" id="pause-actions" style="display:none;margin-top:8px;">
+            <button class="btn-secondary" id="btn-bot-pause" onclick="App.bot.togglePause()">Pausar</button>
+          </div>
+        </div>
+
+        <div class="card control-card">
+          <div class="card-header">
+            <h3>VTube Studio</h3>
+            <div id="vtuber-dot" class="connection-dot offline"></div>
+          </div>
+          <p class="card-sub"><span data-i18n="dashboard.port">Porta:</span> <span id="vtuber-port-display">8001</span></p>
+          <div class="card-actions">
+            <button class="btn-primary" id="btn-vtuber-connect" onclick="App.vtuber.toggle()">Conectar</button>
+          </div>
+        </div>
+
+        <!-- Recent pat pats feed -->
+        <div class="card feed-card">
+          <div class="card-header">
+            <h3 data-i18n="dashboard.last_patpats">Últimos Pat Pats</h3>
+            <span class="card-count" id="feed-count">0</span>
+          </div>
+          <div id="patpat-feed" class="feed-list">
+            <p class="empty-state" data-i18n="dashboard.empty_feed">Nenhum pat pat ainda...</p>
+          </div>
+        </div>
+
+        <!-- Log console -->
+        <div class="card log-card">
+          <div class="card-header">
+            <h3 data-i18n="dashboard.console">Console</h3>
+            <button class="icon-btn" onclick="App.log.clear()" data-i18n-title="dashboard.console_clear" title="Limpar console">✕</button>
+          </div>
+          <div id="log-console" class="log-console"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Pat Pats tab ── -->
+    <div id="tab-patpats" class="tab-content">
+      <div class="tab-toolbar">
+        <h2>Pat Pats Gallery</h2>
+        <button class="btn-primary" onclick="App.patpats.import()" data-i18n="btn.import">+ Importar</button>
+      </div>
+      <p class="tab-hint" data-i18n-html="patpats.hint">Clique no campo de comando para definir qual palavra viewers digitam após <code>!pat</code>.</p>
+      <div id="patpat-gallery" class="gallery-grid">
+        <p class="empty-state" data-i18n="patpats.loading">Carregando...</p>
+      </div>
+    </div>
+
+    <!-- ── Users tab ── -->
+    <div id="tab-users" class="tab-content">
+      <div class="tab-toolbar">
+        <h2 data-i18n="tab.users">Usuários</h2>
+        <input class="search-input" type="text" id="user-search" data-i18n-placeholder="users.search" placeholder="Pesquisar usuário..." oninput="App.users.filter(this.value)" />
+      </div>
+      <div id="users-table-container">
+        <div id="streamer-overlay" onclick="App.users.unlockStreamerMode()">
+          <span data-i18n="users.web_item_mode">🔴 Web Item (VTuber Studio)</span>
+          <small data-i18n="users.streamer_hint">Clique para revelar</small>
+        </div>
+        <div class="table-wrap">
+          <table id="users-table">
+            <thead>
+              <tr>
+                <th data-i18n="users.col_user">Usuário</th>
+                <th data-i18n="users.col_color">Cor</th>
+                <th data-i18n="users.col_patpats">Pat Pats</th>
+                <th data-i18n="users.col_last_seen">Visto por último</th>
+                <th data-i18n="users.col_status">Status</th>
+                <th data-i18n="users.col_actions">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr><td colspan="6" class="empty-state" data-i18n="users.empty">Nenhum usuário registrado.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Settings tab ── -->
+    <div id="tab-settings" class="tab-content">
+      <div class="settings-layout">
+
+        <section class="settings-section">
+          <h3 data-i18n="settings.section_twitch">Twitch</h3>
+          <div class="form-group">
+            <label data-i18n="settings.spawn_mode">Modo de Spawn</label>
+            <select id="s-spawn-mode">
+              <option value="reward" data-i18n="settings.spawn_mode_reward">Por Resgate (Padrão)</option>
+              <option value="command" data-i18n="settings.spawn_mode_command">Somente por Comando</option>
+            </select>
+            <span class="form-hint" data-i18n="settings.spawn_mode_hint">No modo comando, viewers trocam via !pat usando os comandos da galeria.</span>
+          </div>
+          <div class="form-group toggle-row">
+            <label data-i18n="settings.require_redeem">Exigir um resgate na sessão antes dos comandos</label>
+            <input type="checkbox" id="s-command-require-redeem" class="toggle" />
+          </div>
+          <div id="reward-section" class="form-group">
+            <label data-i18n="settings.reward_label">Resgate Twitch para Pat Pat</label>
+            <div class="inline-row">
+              <select id="s-reward-id"></select>
+              <button class="btn-secondary" onclick="App.settings.refreshRewards()" data-i18n="btn.refresh">Atualizar</button>
+            </div>
+            <span class="form-hint" data-i18n="settings.reward_hint">Selecione um resgate da sua conta sem copiar ID manualmente.</span>
+          </div>
+          <div class="form-group">
+            <label data-i18n="settings.cooldown">Cooldown dos avisos (segundos)</label>
+            <input type="number" id="s-cooldown" min="5" max="300" value="30" />
+          </div>
+        </section>
+
+        <section class="settings-section">
+          <h3 data-i18n="settings.section_vtuber">VTube Studio</h3>
+          <div class="form-group toggle-row">
+            <label data-i18n="settings.vtuber_enabled">Spawn automático no VTube Studio</label>
+            <input type="checkbox" id="s-vtuber-enabled" class="toggle" />
+          </div>
+          <div class="form-group">
+            <label data-i18n="settings.vtuber_port">Porta da API</label>
+            <input type="number" id="s-vtuber-port" min="1" max="65535" value="8001" />
+          </div>
+          <div class="form-group">
+            <label data-i18n="settings.vtuber_url">URL do Web Item (overlay no VTube Studio)</label>
+            <input type="text" id="s-vtuber-url" placeholder="http://localhost:3000/patpat" />
+          </div>
+          <div class="form-group">
+            <label><span data-i18n="settings.vtuber_expression">Expressão / Hotkey ao spawnar</span> <button class="btn-help" onclick="App.settings.toggleExpressionTutorial()" data-i18n-title="settings.vtuber_expression_help" title="Como criar a expressão no VTube Studio">?</button></label>
+            <div class="inline-row">
+              <select id="s-vtuber-expression"></select>
+              <button class="btn-secondary" onclick="App.settings.refreshExpressions()" data-i18n="btn.refresh">Atualizar</button>
+            </div>
+            <span class="form-hint" data-i18n-html="settings.vtuber_expression_hint">Selecione uma expressão cujo tipo contenha <strong>(WebItemAction)</strong>.</span>
+          </div>
+
+
+        </section>
+
+        <section class="settings-section">
+          <h3 data-i18n="settings.section_overlay">Web Item (VTuber Studio)</h3>
+          <div class="form-group toggle-row">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <label data-i18n="settings.show_messages">Exibir mensagem do usuário</label>
+              <span class="info-tooltip-icon" data-i18n-title="settings.show_messages_experimental">!</span>
+            </div>
+            <input type="checkbox" id="s-show-messages" class="toggle" />
+          </div>
+          <div class="form-group" id="msg-duration-group">
+            <label data-i18n="settings.msg_duration">Duração da mensagem (segundos)</label>
+            <input type="number" id="s-msg-duration" min="1" max="60" value="10" />
+          </div>
+          <div class="overlay-url-box">
+            <span data-i18n="settings.overlay_url_label">URL do overlay para OBS/VTube Studio:</span>
+            <code>http://localhost:3000/patpat</code>
+          </div>
+        </section>
+
+        <section class="settings-section">
+          <h3 data-i18n="settings.section_interface">Interface</h3>
+          <div class="form-group">
+            <label data-i18n="settings.lang_label">Idioma</label>
+            <select id="s-interface-lang">
+              <option value="pt-BR">Português (Brasil)</option>
+              <option value="en-US">English</option>
+            </select>
+            <span class="form-hint" data-i18n="settings.lang_hint">Escolha o idioma da interface do PurrPat.</span>
+          </div>
+          <div class="form-group toggle-row">
+            <label data-i18n="settings.censor_users">Censurar aba de Usuários</label>
+            <input type="checkbox" id="s-censor-users" class="toggle" />
+          </div>
+          <span class="form-hint" data-i18n="settings.censor_users_hint">Ao abrir a aba de Usuários, a lista ficará borrada. Clique na área para ver.</span>
+        </section>
+
+        <section class="settings-section">
+          <h3 data-i18n="settings.section_account">Conta Twitch</h3>
+          <div class="account-row">
+            <span><span data-i18n="settings.logged_as">Logado como:</span> <strong id="s-account-name">—</strong></span>
+            <button class="btn-danger" onclick="App.auth.logout()" data-i18n="settings.logout_btn">Sair / Trocar conta</button>
+          </div>
+        </section>
+
+        <div class="settings-save-row">
+          <button class="btn-primary btn-large" onclick="App.settings.save()" data-i18n="settings.save_btn">Salvar Configurações</button>
+          <span id="settings-saved-msg" class="saved-msg hidden" data-i18n="btn.save_ok">✓ Salvo!</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Personalizar tab ── -->
+    <div id="tab-preview" class="tab-content">
+      <div class="cz-wrap">
+        <div class="cz-note" data-i18n="customize.webitem_note">⚠️ WebItemActions já abertos no VTube Studio não atualizam em tempo real.</div>
+        <div class="cz-layout">
+          <div class="cz-preview-col">
+            <div class="cz-frame-shell" id="preview-frame-wrap">
+              <!-- iframe inserted dynamically on tab load -->
+            </div>
+          </div>
+          <div class="cz-controls-col">
+            <div class="cz-section">
+              <div class="cz-section-label" data-i18n="customize.gif_section">Pat Pat</div>
+              <div class="cz-gif-grid" id="cz-gif-grid"></div>
+            </div>
+            <div class="cz-section">
+              <div class="cz-section-label" data-i18n="customize.nickname_section">Nickname</div>
+              <div class="cz-toggle-row">
+                <label class="cz-toggle-label">
+                  <input type="checkbox" id="cz-glow" checked>
+                  <span data-i18n="customize.glow">Brilho</span>
+                </label>
+                <label class="cz-toggle-label">
+                  <input type="checkbox" id="cz-outline" checked>
+                  <span data-i18n="customize.outline">Contorno</span>
+                </label>
+                <label class="cz-toggle-label">
+                  <input type="checkbox" id="cz-show-icon" checked>
+                  <span data-i18n="customize.show_icon">Ícone</span>
+                </label>
+              </div>
+              <div class="cz-font-row">
+                <label data-i18n="customize.font">Fonte</label>
+                <select id="cz-font" class="cz-font-select">
+                  <option value="Arial">Arial</option>
+                  <option value="Impact">Impact</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Comic Sans MS">Comic Sans MS</option>
+                  <option value="Courier New">Courier New</option>
+                  <option value="Trebuchet MS">Trebuchet MS</option>
+                  <option value="Verdana">Verdana</option>
+                </select>
+              </div>
+              <div class="cz-color-row">
+                <label data-i18n="customize.test_color">Cor de teste</label>
+                <input type="color" id="cz-test-color" value="#9146ff">
+              </div>
+            </div>
+            <div class="cz-section">
+              <div class="cz-slider-row">
+                <label data-i18n="customize.scale">Escala</label>
+                <span id="cz-scale-val">1.00×</span>
+                <input type="range" id="cz-scale" min="0.3" max="3.0" step="0.05" value="1.0">
+              </div>
+              <div class="cz-slider-row">
+                <label data-i18n="customize.fontsize">Tamanho da fonte</label>
+                <span id="cz-fontsize-val">28px</span>
+                <input type="range" id="cz-fontsize" min="10" max="60" step="1" value="28">
+              </div>
+              <div class="cz-slider-row">
+                <label data-i18n="customize.pos_y">Posição vertical (px)</label>
+                <span id="cz-pos-y-val">35px</span>
+                <input type="range" id="cz-pos-y" min="-80" max="200" step="1" value="35">
+              </div>
+              <div class="cz-slider-row">
+                <label data-i18n="customize.pos_x">Posição horizontal (%)</label>
+                <span id="cz-pos-x-val">50%</span>
+                <input type="range" id="cz-pos-x" min="0" max="100" step="1" value="50">
+              </div>
+            </div>
+            <div class="cz-actions">
+              <button class="btn-secondary" onclick="App.customize.reset()" data-i18n="customize.reset">Resetar Padrão</button>
+              <button class="btn-primary" onclick="App.customize.save()" data-i18n="customize.save">Salvar</button>
+              <span id="cz-saved-msg" class="saved-msg hidden" data-i18n="customize.saved">✓ Salvo!</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Extras tab ── -->
+    <div id="tab-extras" class="tab-content">
+
+      <!-- Menu principal de Extras -->
+      <div class="extras-menu" id="extras-menu">
+        <div class="extras-menu-grid">
+          <button class="extras-menu-btn" onclick="App.extras.showPage('about')">
+            <span data-i18n="extras.btn.about">Sobre</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sub-página: Sobre -->
+      <div class="extras-page" id="extras-page-about">
+        <div class="extras-page-header">
+          <button class="extras-back-btn" onclick="App.extras.back()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+            <span data-i18n="extras.back">Voltar</span>
+          </button>
+        </div>
+        <div class="extras-layout">
+          <div class="about-card">
+            <div class="about-avatar">
+              <img src="https://github.com/Ayahoii.png" alt="Ayahoii" onerror="this.style.display='none'">
+            </div>
+            <div class="about-body">
+              <h2 class="about-name">PurrPat</h2>
+              <p class="about-tagline" data-i18n-html="about.tagline">Feito com 🐾 por <strong>Ayahoii</strong></p>
+              <p class="about-desc" data-i18n="about.desc">PurrPat é um bot de pat pat para streamers VTubers no Twitch, integrado com VTube Studio para reações ao vivo.</p>
+              <div class="about-links">
+                <button class="about-link-btn" onclick="App.openLink('https://github.com/Ayahoii')">
+                  <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                  <span data-i18n="about.github">GitHub</span>
+                </button>
+                <button class="about-link-btn" onclick="App.openLink('https://x.com/Ayahoii')">
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.264 5.634 5.9-5.634zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                  <span data-i18n="about.twitter">X / Twitter</span>
+                </button>
+              </div>
+              <p class="about-version" id="about-version">v1.0</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ═══ VTUBE TUTORIAL MODAL ═══ -->
+  <div id="vtube-tutorial-modal" class="hidden">
+    <div class="vtube-tutorial-backdrop" onclick="App.settings.toggleExpressionTutorial()"></div>
+    <div class="vtube-tutorial-dialog">
+      <div class="vtube-tutorial-header">
+        <span data-i18n="tutorial.title">🎭 Como criar expressão WebItemAction</span>
+        <button class="vtube-tutorial-close" onclick="App.settings.toggleExpressionTutorial()" data-i18n-title="tutorial.close" title="Fechar">✕</button>
+      </div>
+      <div class="vtube-tutorial-body">
+        <p class="vtube-tutorial-intro" data-i18n-html="tutorial.intro">Nenhuma expressão do tipo <strong>WebItemAction</strong> foi encontrada no modelo atual. Siga os passos abaixo para criar uma:</p>
+        <ol>
+          <li data-i18n-html="tutorial.step1">Spawne um <strong>Web Item</strong> no VTube Studio.</li>
+          <li><span data-i18n-html="tutorial.step2_a">Clique na <strong>engrenagem</strong> do Web Item. Em <strong>Initial URL</strong>, coloque a URL do overlay configurada neste app:</span> <code id="tutorial-url">http://localhost:3000/patpat</code> <button class="btn-copy-url" onclick="App.settings.copyTutorialUrl()" data-i18n-title="tutorial.copy_url" title="Copiar URL">📋</button> <span data-i18n-html="tutorial.step2_b">Clique em <strong>OK</strong>.</span></li>
+          <li data-i18n-html="tutorial.step3">Vá em <strong>Hotkeys Settings &amp; Expressions</strong>.</li>
+          <li data-i18n-html="tutorial.step4">No final da lista de hotkeys, clique em <strong>+</strong>.</li>
+          <li data-i18n-html="tutorial.step5">Em <strong>Escolher Ação</strong>, selecione <strong>Trigger Web Item Action</strong>.</li>
+          <li data-i18n-html="tutorial.step6">Defina a expressão e escolha <strong>Spawn new</strong>.</li>
+          <li data-i18n-html="tutorial.step7">Renomeie a expressão para <strong>PatPat</strong> para facilitar identificação.</li>
+        </ol>
+        <p class="vtube-tutorial-tip" data-i18n-html="tutorial.tip">💡 Depois de criar, clique em <strong>Atualizar</strong> na lista de expressões para ela aparecer aqui.</p>
+      </div>
+    </div>
+  </div>
+
+    <!-- ── Extras tab ── -->
+    <div id="tab-extras" class="tab-content">
+      <div class="extras-layout">
+
+        <!-- Sobre -->
+        <div class="about-card">
+          <div class="about-avatar">
+            <img src="https://github.com/Ayahoii.png" alt="Ayahoii" onerror="this.style.display='none'">
+          </div>
+          <div class="about-body">
+            <h2 class="about-name">PurrPat</h2>
+            <p class="about-tagline" data-i18n="about.tagline">Feito com 🐾 por <strong>Ayahoii</strong></p>
+            <p class="about-desc" data-i18n="about.desc">PurrPat é um bot de pat pat para streamers VTubers no Twitch, integrado com VTube Studio para reações ao vivo.</p>
+            <div class="about-links">
+              <button class="about-link-btn" onclick="App.openLink('https://github.com/Ayahoii')">
+                <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                GitHub
+              </button>
+              <button class="about-link-btn" onclick="App.openLink('https://x.com/Ayahoii')">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.264 5.634 5.9-5.634zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                X / Twitter
+              </button>
+            </div>
+            <p class="about-version" id="about-version">v1.0</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  <script>window._purrpatLocales = {};</script>
+  <script src="locales/pt-BR.js"></script>
+  <script src="locales/en-US.js"></script>
+  <script src="i18n.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

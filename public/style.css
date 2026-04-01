@@ -1,0 +1,215 @@
+body {
+  margin: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: Arial, sans-serif;
+}
+
+.patpat-container {
+  position: relative;
+  display: inline-block;
+  width: 200px;
+  overflow: visible; /* Permite partículas saírem do container */
+}
+
+img {
+  width: 200px;
+  display: block;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.username {
+  position: absolute;
+  left: 50%;
+  top: 35px;
+  transform: translateX(-50%);
+  color: white;
+  font-size: 28px;
+  font-weight: bold;
+  text-align: center;
+  pointer-events: none;
+  z-index: 2;
+  width: 100%;
+  -webkit-text-stroke: 2px black;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3em;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Efeito de glow nas bordas */
+  filter: drop-shadow(0 0 8px currentColor) 
+          drop-shadow(0 0 12px rgba(255, 255, 255, 0.5))
+          drop-shadow(0 0 6px rgba(255, 255, 255, 0.3));
+  text-shadow: 0 0 10px currentColor,
+               0 0 15px rgba(255, 255, 255, 0.6),
+               0 0 20px rgba(255, 255, 255, 0.4),
+               2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.twitch-icon {
+  height: 1em;
+  width: 1em;
+  display: inline-block;
+  filter: drop-shadow(0 0 2px black);
+}
+
+#profile-pic {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px #0006;
+  z-index: 3;
+  display: none;
+}
+
+@keyframes profileAppear {
+  0% {
+    width: 150px;
+    height: 150px;
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  100% {
+    width: 64px;
+    height: 64px;
+    opacity: 0;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+@keyframes usernameAppear {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes patpatAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.profile-enter {
+  animation: profileAppear 0.7s ease-out 0.5s forwards;
+}
+
+.username-appear {
+  animation: usernameAppear 0.5s ease-out 1s forwards;
+}
+
+.patpat-appear {
+  animation: patpatAppear 0.5s ease-out 1s forwards;
+}
+
+
+.user-message {
+  margin-top: 10px;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 5px 10px;
+  border-radius: 10px;
+  max-width: 250px;
+  word-wrap: break-word;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Garante que a animação funcione a partir do centro */
+  transform-origin: center top;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: auto;
+}
+
+@keyframes popIn {
+  0% { transform: scale(0); opacity: 0; }
+  80% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.9); }
+}
+
+.pop-in {
+  animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.fade-out {
+  animation: fadeOut 1s ease-out forwards !important;
+}
+
+.emote-small {
+  height: 1.5em;
+  width: 1.5em;
+  vertical-align: middle;
+  margin: 0;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.emote-large {
+  height: 4em;
+  width: 4em;
+  vertical-align: middle;
+  margin: 0;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* Badge de subscriber */
+.subscriber-badge {
+  height: 0.85em;
+  width: 0.85em;
+  display: inline-block;
+  filter: drop-shadow(0 0 3px #b9a3e3) drop-shadow(0 0 6px rgba(185, 163, 227, 0.8));
+  vertical-align: middle;
+  margin: 0 2px;
+}
+
+/* Partículas */
+.particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 1;
+}
+
+@keyframes float-particle {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--tx, 0), var(--ty, -100px)) scale(0);
+  }
+}
+
+

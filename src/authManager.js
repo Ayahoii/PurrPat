@@ -12,8 +12,9 @@ const SCOPES = 'chat:read chat:edit channel:read:redemptions';
 const CALLBACK_PORT = 7478;
 // ────────────────────────────────────────────────────────────────
 
-const DATA_FILE = path.join(__dirname, '..', 'data', 'auth.json');
-const DATA_DIR = path.join(__dirname, '..', 'data');
+const { app } = require('electron');
+const DATA_DIR = path.join(app.getPath('userData'), 'data');
+const DATA_FILE = path.join(DATA_DIR, 'auth.json');
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });

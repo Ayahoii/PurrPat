@@ -18,6 +18,6 @@ Write-Host "Instalando dependencias..." -ForegroundColor Yellow
 npm install
 
 Write-Host "Gerando release e publicando no GitHub Releases..." -ForegroundColor Yellow
-npx electron-builder --win nsis --publish always -c.publish.provider=github -c.publish.owner=$env:GH_OWNER -c.publish.repo=$env:GH_REPO
+npx electron-builder --win nsis --publish always
 
 Write-Host "Release finalizada. Verifique a aba Releases no GitHub." -ForegroundColor Green

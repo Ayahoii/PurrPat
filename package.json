@@ -33,7 +33,6 @@
         "provider": "github",
         "owner": "Ayahoii",
         "repo": "PurrPat",
-        "draft": false,
         "releaseType": "release"
       }
     ],

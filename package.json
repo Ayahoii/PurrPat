@@ -32,7 +32,9 @@
       {
         "provider": "github",
         "owner": "Ayahoii",
-        "repo": "PurrPat"
+        "repo": "PurrPat",
+        "draft": false,
+        "releaseType": "release"
       }
     ],
     "directories": {

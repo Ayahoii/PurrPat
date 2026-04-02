@@ -1,6 +1,7 @@
 node_modules/
 release/
 scripts/
+start.bat
 
 data/*.json
 

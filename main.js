@@ -58,6 +58,25 @@ function getErrorMessage(err) {
 }
 
 function setupAutoUpdater() {
+  function sendUpdateStatus(data) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-status', data);
+    }
+  }
+
+  // Handlers sempre registrados (dev ou prod)
+  ipcMain.handle('updater:check', () => {
+    if (!app.isPackaged) return;
+    autoUpdater.checkForUpdates().catch((err) => {
+      sendLog(`Falha ao verificar atualizacoes: ${getErrorMessage(err)}`, 'warn');
+    });
+  });
+
+  ipcMain.handle('updater:install', () => {
+    if (!app.isPackaged) return;
+    autoUpdater.quitAndInstall();
+  });
+
   if (!app.isPackaged) {
     sendLog('Auto-update desativado no modo desenvolvimento.', 'info');
     return;
@@ -65,12 +84,6 @@ function setupAutoUpdater() {
 
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
-
-  function sendUpdateStatus(data) {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-status', data);
-    }
-  }
 
   autoUpdater.on('checking-for-update', () => {
     sendUpdateStatus({ state: 'checking' });
@@ -95,16 +108,6 @@ function setupAutoUpdater() {
   autoUpdater.on('error', (err) => {
     sendLog(`Erro no sistema de update: ${getErrorMessage(err)}`, 'warn');
     sendUpdateStatus({ state: 'none' });
-  });
-
-  ipcMain.handle('updater:check', () => {
-    autoUpdater.checkForUpdates().catch((err) => {
-      sendLog(`Falha ao verificar atualizacoes: ${getErrorMessage(err)}`, 'warn');
-    });
-  });
-
-  ipcMain.handle('updater:install', () => {
-    autoUpdater.quitAndInstall();
   });
 
   setTimeout(() => {

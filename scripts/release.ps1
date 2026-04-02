@@ -20,4 +20,23 @@ npm install
 Write-Host "Gerando release e publicando no GitHub Releases..." -ForegroundColor Yellow
 npx electron-builder --win nsis --publish always
 
+Write-Host "Publicando drafts no GitHub..." -ForegroundColor Yellow
+$headers = @{
+  Authorization  = "Bearer $env:GH_TOKEN"
+  Accept         = "application/vnd.github+json"
+  "Content-Type" = "application/json"
+}
+$releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GH_OWNER/$env:GH_REPO/releases" -Headers $headers
+$drafts = $releases | Where-Object { $_.draft -eq $true }
+
+if ($drafts.Count -eq 0) {
+  Write-Host "Nenhum draft encontrado (ja publicado)." -ForegroundColor Gray
+} else {
+  foreach ($rel in $drafts) {
+    $body = '{"draft":false}'
+    $updated = Invoke-RestMethod -Method Patch -Uri "https://api.github.com/repos/$env:GH_OWNER/$env:GH_REPO/releases/$($rel.id)" -Headers $headers -Body $body
+    Write-Host "Publicado: $($updated.tag_name)" -ForegroundColor Green
+  }
+}
+
 Write-Host "Release finalizada. Verifique a aba Releases no GitHub." -ForegroundColor Green

@@ -66,49 +66,49 @@ function setupAutoUpdater() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 
+  function sendUpdateStatus(data) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-status', data);
+    }
+  }
+
   autoUpdater.on('checking-for-update', () => {
-    sendLog('Verificando atualizacoes...', 'info');
+    sendUpdateStatus({ state: 'checking' });
   });
 
   autoUpdater.on('update-available', (info) => {
-    sendLog(`Atualizacao encontrada (v${info.version}). Baixando em segundo plano...`, 'success');
+    sendUpdateStatus({ state: 'available', version: info.version });
   });
 
   autoUpdater.on('update-not-available', () => {
-    sendLog('Voce ja esta na versao mais recente.', 'info');
+    sendUpdateStatus({ state: 'none' });
   });
 
   autoUpdater.on('download-progress', (progress) => {
-    const percent = Math.round(progress.percent || 0);
-    sendLog(`Baixando atualizacao: ${percent}%`, 'info');
+    sendUpdateStatus({ state: 'downloading', percent: Math.round(progress.percent || 0) });
   });
 
-  autoUpdater.on('update-downloaded', async (info) => {
-    sendLog(`Atualizacao v${info.version} pronta para instalar.`, 'success');
-
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-
-    const result = await dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Atualizacao pronta',
-      message: `A versao ${info.version} foi baixada.`,
-      detail: 'Deseja reiniciar agora para concluir a instalacao?',
-      buttons: ['Reiniciar agora', 'Depois'],
-      defaultId: 0,
-      cancelId: 1
-    });
-
-    if (result.response === 0) {
-      autoUpdater.quitAndInstall();
-    }
+  autoUpdater.on('update-downloaded', (info) => {
+    sendUpdateStatus({ state: 'ready', version: info.version });
   });
 
   autoUpdater.on('error', (err) => {
     sendLog(`Erro no sistema de update: ${getErrorMessage(err)}`, 'warn');
+    sendUpdateStatus({ state: 'none' });
+  });
+
+  ipcMain.handle('updater:check', () => {
+    autoUpdater.checkForUpdates().catch((err) => {
+      sendLog(`Falha ao verificar atualizacoes: ${getErrorMessage(err)}`, 'warn');
+    });
+  });
+
+  ipcMain.handle('updater:install', () => {
+    autoUpdater.quitAndInstall();
   });
 
   setTimeout(() => {
-    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+    autoUpdater.checkForUpdates().catch((err) => {
       sendLog(`Falha ao verificar atualizacoes: ${getErrorMessage(err)}`, 'warn');
     });
   }, 8000);

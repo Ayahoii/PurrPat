@@ -239,7 +239,46 @@ a:hover { text-decoration: underline; }
 }
 
 .topbar-left { min-width: 120px; }
-.topbar-right { min-width: 200px; display: flex; justify-content: flex-end; gap: 8px; }
+.topbar-right { min-width: 200px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+
+/* Update banner */
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-3);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.update-banner--checking {
+  color: var(--text-muted);
+}
+.update-banner--available {
+  border-color: rgba(88,166,255,0.4);
+  background: rgba(88,166,255,0.08);
+  color: #58a6ff;
+}
+.update-banner--ready {
+  border-color: rgba(63,185,80,0.4);
+  background: rgba(63,185,80,0.08);
+  color: var(--success);
+}
+.update-install-btn {
+  padding: 2px 10px;
+  background: var(--success);
+  border: none;
+  border-radius: 10px;
+  color: #000;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.update-install-btn:hover { opacity: 0.85; }
 
 .tab-nav {
   flex: 1;

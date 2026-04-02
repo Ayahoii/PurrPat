@@ -48,5 +48,9 @@ contextBridge.exposeInMainWorld('purrpat', {
   off: (channel) => {
     ipcRenderer.removeAllListeners(channel);
   },
-  openExternal: (url) => ipcRenderer.invoke('open-external', url)
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  updater: {
+    check: () => ipcRenderer.invoke('updater:check'),
+    install: () => ipcRenderer.invoke('updater:install')
+  }
 });

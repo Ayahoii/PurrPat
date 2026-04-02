@@ -25,7 +25,13 @@ _purrpatLocales['pt-BR'] = {
   'about.github':          'GitHub',
   'about.twitter':         'X / Twitter',
   'extras.btn.about':      'Sobre',
+  'extras.btn.checkupdate': 'Verificar Atualizações',
   'extras.back':           'Voltar',
+  'update.checking':       'Verificando atualizações...',
+  'update.available':      'Nova versão disponível: v{v}',
+  'update.downloading':    'Baixando atualização: {p}%',
+  'update.ready':          'Atualização v{v} pronta',
+  'update.install':        'Instalar e Reiniciar',
 
   // ── Personalizar ─────────────────────────────────────────────
   'customize.webitem_note': '⚠️ WebItemActions já abertos no VTube Studio não atualizam em tempo real.',

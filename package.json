@@ -1,7 +1,7 @@
 {
   "name": "purrpat",
   "productName": "PurrPat",
-  "version": "1.0.3",
+  "version": "1.0.0",
   "description": "PurrPat - Sistema de Pat Pat para VTubers na Twitch",
   "main": "main.js",
   "scripts": {

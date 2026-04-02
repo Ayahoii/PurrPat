@@ -25,7 +25,13 @@ _purrpatLocales['en-US'] = {
   'about.github':          'GitHub',
   'about.twitter':         'X / Twitter',
   'extras.btn.about':      'About',
+  'extras.btn.checkupdate': 'Check for Updates',
   'extras.back':           'Back',
+  'update.checking':       'Checking for updates...',
+  'update.available':      'New version available: v{v}',
+  'update.downloading':    'Downloading update: {p}%',
+  'update.ready':          'Update v{v} ready',
+  'update.install':        'Install & Restart',
 
   // ── Customize ──────────────────────────────────────────────────
   'customize.webitem_note': '⚠️ WebItemActions already open in VTube Studio will not update in real time.',

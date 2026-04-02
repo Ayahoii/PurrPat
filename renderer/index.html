@@ -59,6 +59,10 @@
         <button class="tab-btn" data-tab="extras" data-i18n="tab.extras">Extras</button>
       </nav>
       <div class="topbar-right">
+        <div id="update-banner" class="update-banner" style="display:none">
+          <span id="update-banner-text"></span>
+          <button id="update-install-btn" class="update-install-btn" style="display:none" onclick="App.updater.install()" data-i18n="update.install">Instalar</button>
+        </div>
         <div class="status-pill" id="status-twitch" title="Status Twitch">
           <span class="status-dot"></span>
           <span class="status-label">Twitch</span>
@@ -365,6 +369,9 @@
         <div class="extras-menu-grid">
           <button class="extras-menu-btn" onclick="App.extras.showPage('about')">
             <span data-i18n="extras.btn.about">Sobre</span>
+          </button>
+          <button class="extras-menu-btn" id="extras-check-update-btn" onclick="App.updater.checkManual()">
+            <span data-i18n="extras.btn.checkupdate">Verificar Atualizações</span>
           </button>
         </div>
       </div>

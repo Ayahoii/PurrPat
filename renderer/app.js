@@ -14,6 +14,7 @@ const App = {
   async init() {
     App.tabs.init();
     App.log.init();
+    App.updater.init();
     App.events.init();
 
     const { authenticated, credentials } = await purrpat.auth.getStatus();
@@ -164,6 +165,67 @@ const App = {
         if (data && data.minimized) App.tabs.suspendActive();
         else App.tabs.resumeActive();
       });
+
+      purrpat.on('update-status', (data) => App.updater.onStatus(data));
+    }
+  },
+
+  // ── Updater UI ──────────────────────────────────────────
+  updater: {
+    _banner: null,
+    _bannerText: null,
+    _installBtn: null,
+    _checkBtn: null,
+    init() {
+      this._banner     = document.getElementById('update-banner');
+      this._bannerText = document.getElementById('update-banner-text');
+      this._installBtn = document.getElementById('update-install-btn');
+      this._checkBtn   = document.getElementById('extras-check-update-btn');
+    },
+    onStatus(data) {
+      const b = this._banner;
+      const txt = this._bannerText;
+      const btn = this._installBtn;
+      const ckBtn = this._checkBtn;
+      if (!b) return;
+      switch (data.state) {
+        case 'checking':
+          b.style.display = '';
+          b.className = 'update-banner update-banner--checking';
+          txt.textContent = t('update.checking');
+          btn.style.display = 'none';
+          if (ckBtn) ckBtn.disabled = true;
+          break;
+        case 'available':
+          b.style.display = '';
+          b.className = 'update-banner update-banner--available';
+          txt.textContent = t('update.available', { v: data.version });
+          btn.style.display = 'none';
+          break;
+        case 'downloading':
+          b.style.display = '';
+          b.className = 'update-banner update-banner--available';
+          txt.textContent = t('update.downloading', { p: data.percent });
+          btn.style.display = 'none';
+          break;
+        case 'ready':
+          b.style.display = '';
+          b.className = 'update-banner update-banner--ready';
+          txt.textContent = t('update.ready', { v: data.version });
+          btn.style.display = '';
+          if (ckBtn) ckBtn.disabled = false;
+          break;
+        default: // 'none'
+          b.style.display = 'none';
+          btn.style.display = 'none';
+          if (ckBtn) ckBtn.disabled = false;
+      }
+    },
+    checkManual() {
+      purrpat.updater.check();
+    },
+    install() {
+      purrpat.updater.install();
     }
   },
 

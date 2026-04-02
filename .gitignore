@@ -8,6 +8,16 @@ data/*.json
 .vscode/
 *.code-workspace
 
+# Configuração local
+src/
+renderer/app.js
+renderer/i18n.js
+renderer/index.html
+renderer/style.css
+package.json
+package-lock.json
+preload.js
+
 Thumbs.db
 .DS_Store
 npm-debug.log*

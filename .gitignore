@@ -14,6 +14,7 @@ renderer/app.js
 renderer/i18n.js
 renderer/index.html
 renderer/style.css
+main.js
 package.json
 package-lock.json
 preload.js
